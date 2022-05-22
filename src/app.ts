@@ -1,8 +1,8 @@
-import * as config from 'config';
+import config from 'config';
 import { isLoggedIn, login } from './login';
 import { fetchAllCoursesAvailableToDownload, downloadCourse } from './download';
 import { ALL_COURSES_API, COURSE_URL_PREFIX } from './globals';
-import { getBrowser, closeBrowser } from './browser';
+import { getBrowser } from './browser';
 
 const COURSE_URL: string = config.get('courseUrl');
 const LOGIN_CHECK: boolean = config.get('loginCheck');
@@ -57,7 +57,7 @@ process.on('unhandledRejection', async (error) => {
   console.error(error);
 
   // Close browser
-  await closeBrowser();
+  // await closeBrowser();
 
   process.exit(1);
 });
@@ -69,7 +69,7 @@ process.on('uncaughtException', async (error) => {
   console.error(error);
 
   // Close browser
-  await closeBrowser();
+  // await closeBrowser();
 
   process.exit(1);
 });
@@ -80,13 +80,13 @@ process.on('uncaughtException', async (error) => {
 main()
 .then(async () => {
   console.log('=> Done');
-  await closeBrowser();
+  // await closeBrowser();
 })
 .catch(async (e) => {
   console.error(e.message);
 
   // Close browser
-  await closeBrowser();
+  // await closeBrowser();
 
   process.exit(1);
 });

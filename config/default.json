@@ -1,10 +1,10 @@
 {
-    "email": "example@gmail.com",
-    "password": "yourPassword",
+    "email": "lz83ny@gmail.com",
+    "password": "Sukces@2022",
     "loginCheck": true,
     "saveAs": "html",
     "multiLanguage": false,
-    "headless": true,
-    "courseUrl": "https://www.educative.io/courses/grokking-the-behavioral-interview",
+    "headless": false,
+    "courseUrl": "https://www.educative.io/courses/prof-command-line-programs-go",
     "downloadAllCourses": false
 }

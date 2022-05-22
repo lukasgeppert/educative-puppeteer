@@ -1,7 +1,7 @@
-import * as config from 'config';
+import config from 'config';
 import { isDireectoryExists, mkdir, writeFile, isFileExists } from './helpers';
 import { ROOT_PATH, HTTP_REQUEST_TIMEOUT, PageTitleAndLink, SAVE_LESSON_AS, AvailableCourses, BATCH_SIZE } from './globals';
-import { getPage, getSpecialBrowser } from './browser';
+import { getPage, getBrowser } from './browser';
 import { Browser, Page } from 'puppeteer';
 
 let SAVE_DESTINATION = '';
@@ -15,11 +15,11 @@ console.log(`SAVE AS: ${SAVE_AS}`);
 
 export async function fetchAllCoursesAvailableToDownload(url: string, cursor: string = ''): Promise<string[]> {
 
-  await getSpecialBrowser();
+  await getBrowser();
 
   const page = await getPage();
 
-  await page.goto(url + cursor, { timeout: HTTP_REQUEST_TIMEOUT, waitUntil: 'networkidle0' });
+  await page.goto(url + cursor, { timeout: HTTP_REQUEST_TIMEOUT, waitUntil: 'networkidle2' });
 
   const response = await page.evaluate(() => {
     return document.querySelector("body").innerText;
@@ -65,12 +65,12 @@ async function fetchLessonUrls(courseUrl: string): Promise<PageTitleAndLink[]> {
 
   console.log(`Navigating to courses page. URL: ${courseUrl}`);
 
-  // This function close non-special browsre (if open) and open special browser
-  await getSpecialBrowser();
+  // This function close non-special browser (if open) and open special browser
+  await getBrowser();
 
   const page = await getPage();
 
-  await page.goto(courseUrl, { timeout: HTTP_REQUEST_TIMEOUT, waitUntil: 'networkidle0' });
+  await page.goto(courseUrl, { timeout: HTTP_REQUEST_TIMEOUT, waitUntil: 'networkidle2' });
   const title = (await page.title()).replace(/[&\/\\#,+()$~%.'":*?<>{}]/g, '_');
 
   // Create downloads folder
@@ -90,7 +90,7 @@ async function fetchLessonUrls(courseUrl: string): Promise<PageTitleAndLink[]> {
   console.log(`Looking for lessons\'s urls`);
 
   const pageLinks = await page.evaluate(() => {
-    const links: HTMLAnchorElement[] = Array.from(document.querySelectorAll('.tab-content a'));
+    const links: HTMLAnchorElement[] = Array.from(document.querySelectorAll('#lesson-title'));
     return links.map((link) => {
       return {
         title: link.innerText,
@@ -119,10 +119,10 @@ async function downloadPage(title: string, link: string): Promise<void> {
 
     console.log(`Downloading => ${title} - (${link})`);
 
-    browser = await getSpecialBrowser();
+    browser = await getBrowser();
     page = await browser.newPage();
 
-    await page.goto(link, { timeout: HTTP_REQUEST_TIMEOUT, waitUntil: 'networkidle0' });
+    await page.goto(link, { timeout: HTTP_REQUEST_TIMEOUT, waitUntil: 'networkidle2' });
 
     await page.addStyleTag({ content: 'div[class^="styles__PrevNextButtonWidgetStyled"], div[class^="styles__Footer"], nav { display: none !important; }' });
 
@@ -144,23 +144,17 @@ async function downloadPage(title: string, link: string): Promise<void> {
       //Currently the problem is when the showSolution method is passed as parameter to page evaluate it is not working as expected.
       (<any>window).showSolution = async function showSolution() {
 
-        function waitFor(delay: number) {
-          return new Promise((resolve) => setTimeout(resolve, delay));
-        }
+        // function waitForTimeout(delay: number) {
+        //   return new Promise((resolve) => setTimeout(resolve, delay));
+        // }
 
         //Show Solution Button Click
         try {
 
-          const showSolutionXPath = document.evaluate('//button[span[text()="Show Solution"]]', document, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
+          const showSolutionXPath = document.evaluate('//button[@aria-label="show solution"]', document, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
           for (let i = 0; i < showSolutionXPath.snapshotLength; i++) {
             const showSolutionElement = showSolutionXPath.snapshotItem(i) as HTMLElement;
             showSolutionElement.click();
-            const noJustShowXPath = document.evaluate('//span[text()="No, just show the solution"]', document, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
-            for (let j = 0; j < noJustShowXPath.snapshotLength; j++) {
-              const noJustShowElement = noJustShowXPath.snapshotItem(j) as HTMLElement;
-              noJustShowElement.click();
-              await waitFor(1000);
-            }
           }
 
         } catch (error) {
@@ -176,6 +170,11 @@ async function downloadPage(title: string, link: string): Promise<void> {
 
         //Monaco Content
         try {
+          console.log('Monaco Content');
+          
+          const monacoEditor = await page.$x('//div[contains(@class, "monaco-editor")]/ancestor::div[contains(@class, "styles__CodeEditorStyled")]');
+          console.log(monacoEditor);
+          
           const monacoEditorContainer = document.evaluate('//div[contains(@class, "monaco-editor")]/ancestor::div[contains(@class, "styles__CodeEditorStyled")]', document, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
 
           //Add custom class to div surrounding. So that we can handle easily in for loop.
@@ -261,13 +260,13 @@ async function downloadPage(title: string, link: string): Promise<void> {
                 hideEle.click();
               }
 
-              await waitFor(1000);
+              await waitForTimeout(1000);
               // Break after switching language
               break;
             }
           }
 
-          function waitFor(delay: number) {
+          function waitForTimeout(delay: number) {
             return new Promise((resolve) => setTimeout(resolve, delay));
           }
 
@@ -278,7 +277,7 @@ async function downloadPage(title: string, link: string): Promise<void> {
         }, language);
 
         // waiting 1 seconds just to be sure language has been changed
-        await page.waitFor(1000);
+        await page.waitForTimeout(1000);
         await savePage(page, path);
 
       }
@@ -292,13 +291,14 @@ async function downloadPage(title: string, link: string): Promise<void> {
       await savePage(page, path);
     }
   } catch (error) {
+    console.trace();
     console.log('Failed to download ', link);
     console.log('Reason:', error.message);
   }
 
-  if (page) {
-    await page.close();
-  }
+  // if (page) {
+  //   await page.close();
+  // }
 }
 
 //Before Saving check for errors.
@@ -306,11 +306,28 @@ async function savePage(page: Page, path: string) {
 
   await page.evaluate(async () => {
 
-    function waitFor(delay: number) {
+    function waitForTimeout(delay: number) {
       return new Promise(resolve => setTimeout(resolve, delay));
     }
 
-    await waitFor(500);
+    await waitForTimeout(500);
+
+
+    
+
+    //Check captcha bot prevention page.
+    try {
+      let errorOccured = document.evaluate('//title="Attention Required! | Cloudflare"', document, null, XPathResult.STRING_TYPE, null);
+
+      if (errorOccured.stringValue === 'true') {
+        let err = new Error('Bot detected');
+        console.log("\x1b[31m\n\n", err, "\x1b[0m");
+        throw err
+      }
+    } catch (error) {
+      console.log("\x1b[31m\n\n", error, "\x1b[0m");
+      throw error;
+    }
 
     //Check Unexpected Error : Some times page throw unexpected error.
     try {
@@ -416,6 +433,8 @@ async function pageEvaluation({ SAVE_AS, SAVE_LESSON_AS }) {
   if (SAVE_AS === SAVE_LESSON_AS.PDF) {
     node?.childNodes[0]?.childNodes[0]?.childNodes[0]?.remove();
   } else {
+    console.log('Removing top space');
+    
     node.style.cssText = 'margin-top: -70px';
 
     const content = node?.childNodes[0]?.childNodes[0]?.childNodes[1]?.childNodes[0]?.childNodes[0];
@@ -494,6 +513,8 @@ async function buttonClicks() {
             }, 1);
 
             const createCodeElement = document.createElement("PRE");
+            console.log('set width to 100%');
+            
             createCodeElement.style.cssText = 'width:100%;';
             createCodeElement.innerHTML = allCodeContent;
 

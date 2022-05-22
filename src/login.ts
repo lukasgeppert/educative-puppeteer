@@ -1,4 +1,4 @@
-import * as config from 'config';
+import config from 'config';
 import { HTTP_REQUEST_TIMEOUT, EDUCATIVE_BASE_URL } from './globals';
 import { getPage, getBrowser } from './browser';
 import { Page } from 'puppeteer';
@@ -56,19 +56,19 @@ export async function login(): Promise<void> {
   // await page.setUserAgent(USER_AGENT);
   await page.goto(EDUCATIVE_BASE_URL, { timeout: HTTP_REQUEST_TIMEOUT, waitUntil: 'networkidle2' });
 
-  const isLoginButtonClicked = await clickButton(page, 'MuiButton-label', 'Log in');
+  const isLoginButtonClicked = await clickButton(page, 'p-4 h-full', 'Log In');
 
   if (!isLoginButtonClicked) {
     throw new Error('Could not find login button (open login form)');
   }
 
   // Wait for dom to load
-  await page.waitFor(2000);
+  await page.waitForTimeout(2000);
 
   await page.type('[name=email]', EMAIL, { delay: 200 });
   await page.type('[name=password]', PASSWORD, { delay: 200 });
 
-  const clickLoginBtn = await clickButton(page, 'MuiButton-label', 'Login');
+  const clickLoginBtn = await clickButton(page, 'contained-primary w-full mt-6 leading-6 p-2', 'Log In');
 
   if (!clickLoginBtn) {
     throw new Error('Could not find login button (login form submit)');
@@ -79,7 +79,7 @@ export async function login(): Promise<void> {
 
   if (label === 'Logging in...') {
     try {
-      await page.waitForNavigation({ waitUntil: 'networkidle0' });
+      await page.waitForNavigation({ waitUntil: 'networkidle2' });
       await page.close();
       return;
     } catch (error) {

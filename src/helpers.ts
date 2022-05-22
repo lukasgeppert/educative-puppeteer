@@ -1,5 +1,5 @@
-import * as fs from 'fs';
-import * as util from 'util';
+import fs from 'fs';
+import util from 'util';
 
 export const access = util.promisify(fs.access);
 export const mkdir = util.promisify(fs.mkdir);
